@@ -188,7 +188,7 @@
     <button class="tab-btn" data-view="pagar" data-roles="financeiro,gestao">Contas a Pagar</button>
     <button class="tab-btn" data-view="receber" data-roles="financeiro,gestao">Contas a Receber</button>
     <button class="tab-btn" data-view="carros" data-roles="producao,gestao">Status dos Carros</button>
-    <button class="tab-btn" data-view="os" data-roles="financeiro,gestao">Custos por OS</button>
+    <button class="tab-btn" data-view="os" data-roles="producao,financeiro,gestao">Custos por OS</button>
     <button class="tab-btn" data-view="config" data-roles="gestao">Configurações</button>
   </nav>
 </header>
@@ -309,6 +309,14 @@
     </div>
     <div class="grid" style="grid-template-columns:1fr 1fr;">
       <div class="card">
+        <h3>Saldo por conta</h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:0;">Saldo inicial + recebido − pago em cada conta. Ajuste o saldo inicial em Configurações.</p>
+        <table>
+          <thead><tr><th>Conta</th><th class="num">Saldo atual</th></tr></thead>
+          <tbody id="dash-contas-tbody"></tbody>
+        </table>
+      </div>
+      <div class="card">
         <h3>Fluxo de caixa projetado (30 dias)</h3>
         <p style="font-size:12px;color:var(--text-dim);margin-top:0;">Considera contas a pagar e a receber pendentes com vencimento nos próximos 30 dias.</p>
         <table>
@@ -408,8 +416,21 @@
       <div class="stat neutral"><div class="label">Itens lançados</div><div class="value" id="os-count">0</div></div>
     </div>
     <div class="grid">
-      <div class="card">
-        <h3>Novo custo <span class="tag">OS</span></h3>
+      <div class="card" id="os-import-card">
+        <h3>Importar custos da planilha <span class="tag">CSV</span></h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:0;">
+          Exporta da sua planilha de custo um CSV com as colunas <strong>OS, Item, Valor</strong>
+          (Centro e Observação são opcionais). O sistema reconhece a OS e já lista os custos, um por linha —
+          sem apagar o que já foi lançado antes.
+        </p>
+        <div class="actions">
+          <button class="btn primary" onclick="triggerImportCustosPlanilha()">Importar CSV</button>
+          <button class="btn ghost" onclick="baixarModeloCustosCSV()">Baixar modelo</button>
+        </div>
+        <input type="file" class="file-input" id="import-custos-planilha" accept=".csv" onchange="importarCustosPlanilha(event)">
+      </div>
+      <div class="card" id="os-manual-card">
+        <h3>Lançamento manual <span class="tag">OS</span></h3>
         <label>Nº da OS / Placa</label>
         <input type="text" id="os-numero" placeholder="Ex: OS-014 ou ABC1D23">
         <div class="row2">
@@ -425,8 +446,8 @@
         <label>Observação</label><input type="text" id="os-obs" placeholder="Opcional">
         <div class="actions"><button class="btn primary" onclick="addOS()">Adicionar</button></div>
         <div class="actions">
-          <button class="btn" onclick="exportCSV('os')">Exportar CSV</button>
-          <button class="btn ghost" onclick="triggerImport('os')">Importar CSV</button>
+          <button class="btn" onclick="exportCSV('os')">Exportar backup</button>
+          <button class="btn ghost" onclick="triggerImport('os')">Restaurar backup</button>
         </div>
         <input type="file" class="file-input" id="import-os" accept=".csv" onchange="importCSV(event,'os')">
       </div>
@@ -442,7 +463,7 @@
         <div class="card">
           <h3>Resumo de lucro por OS</h3>
           <table>
-            <thead><tr><th>OS</th><th class="num">Receita</th><th class="num">Custos</th><th class="num">Lucro</th></tr></thead>
+            <thead><tr><th>OS</th><th class="num">Receita</th><th class="num">Custos</th><th class="num">Lucro</th><th class="num">% Custo</th></tr></thead>
             <tbody id="lucro-tbody"></tbody>
           </table>
           <div class="empty" id="lucro-empty">Lance receitas com o campo "Nº da OS" para ver o lucro aqui.</div>
@@ -657,6 +678,12 @@ function selectRole(role){
     firstVisible.classList.add('active');
     document.getElementById('view-'+firstVisible.dataset.view).classList.add('active');
   }
+  // Custos por OS: financeiro só visualiza, não lança (lançamento é da produção)
+  const somenteLeituraOS = (role === 'financeiro');
+  const importCard = document.getElementById('os-import-card');
+  const manualCard = document.getElementById('os-manual-card');
+  if(importCard) importCard.style.display = somenteLeituraOS ? 'none' : '';
+  if(manualCard) manualCard.style.display = somenteLeituraOS ? 'none' : '';
 }
 function showRoleGate(){ document.getElementById('role-gate').style.display = 'flex'; }
 
@@ -713,7 +740,7 @@ function addConta(){
   const input = document.getElementById('nova-conta');
   const nome = input.value.trim();
   if(!nome) return;
-  state.contas.push({id:uid(),nome});
+  state.contas.push({id:uid(),nome,saldoInicial:0});
   input.value='';
   renderContas(); refreshContaSelects();
   scheduleSync();
@@ -724,13 +751,38 @@ function removeConta(id){
   renderContas(); refreshContaSelects();
   scheduleSync();
 }
+function setSaldoInicial(id, valorTxt){
+  const c = state.contas.find(x=>x.id===id);
+  if(!c) return;
+  const valor = parseFloat(valorTxt);
+  c.saldoInicial = isNaN(valor) ? 0 : valor;
+  renderContas();
+  scheduleSync();
+}
+function calcularSaldoConta(contaId){
+  const c = state.contas.find(x=>x.id===contaId);
+  const inicial = c ? (c.saldoInicial||0) : 0;
+  const recebido = state.receber.filter(r=>r.conta===contaId && r.status==='pago').reduce((s,r)=>s+r.valor,0);
+  const pago = state.pagar.filter(p=>p.conta===contaId && p.status==='pago').reduce((s,p)=>s+p.valor,0);
+  return inicial + recebido - pago;
+}
 function renderContas(){
   const wrap = document.getElementById('contas-list');
   wrap.innerHTML='';
+  const table = document.createElement('table');
+  table.innerHTML = `<thead><tr><th>Conta</th><th class="num">Saldo inicial</th><th class="num">Saldo atual</th><th></th></tr></thead>
+    <tbody id="contas-tbody"></tbody>`;
+  wrap.appendChild(table);
+  const tbody = table.querySelector('#contas-tbody');
   state.contas.forEach(c=>{
-    const el = document.createElement('div'); el.className='tag-item';
-    el.innerHTML = `${c.nome}<button onclick="removeConta('${c.id}')">✕</button>`;
-    wrap.appendChild(el);
+    const saldoAtual = calcularSaldoConta(c.id);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${c.nome}</td>
+      <td class="num"><input type="number" step="0.01" value="${c.saldoInicial||0}" style="width:110px;text-align:right;"
+        onchange="setSaldoInicial('${c.id}', this.value)"></td>
+      <td class="num" style="color:${saldoAtual>=0?'var(--ok)':'var(--danger)'};font-weight:600;">${fmtBRL(saldoAtual)}</td>
+      <td><button class="btn small danger" onclick="removeConta('${c.id}')">Remover</button></td>`;
+    tbody.appendChild(tr);
   });
 }
 
@@ -868,6 +920,7 @@ function renderPagar(){
   document.getElementById('pagar-total-pago').textContent = fmtBRL(totalPago);
   document.getElementById('pagar-count').textContent = visiveis;
   renderAlertBanner();
+  if(document.getElementById('contas-list')) renderContas();
   if(document.getElementById('fluxo-tbody')) renderDashboard();
 }
 
@@ -898,7 +951,7 @@ function baixarReceber(id){
 function removeReceber(id){ state.receber = state.receber.filter(x=>x.id!==id); renderReceber(); scheduleSync(); }
 function setContaReceber(id,conta){
   const item = state.receber.find(r=>r.id===id);
-  if(item){ item.conta = conta; scheduleSync(); }
+  if(item){ item.conta = conta; if(document.getElementById('contas-list')) renderContas(); scheduleSync(); }
 }
 function renderReceber(){
   const tbody = document.getElementById('receber-tbody');
@@ -930,6 +983,7 @@ function renderReceber(){
   document.getElementById('receber-total-pago').textContent = fmtBRL(totalPago);
   document.getElementById('receber-count').textContent = visiveis;
   renderLucroPorOS();
+  if(document.getElementById('contas-list')) renderContas();
   if(document.getElementById("fluxo-tbody")) renderDashboard();
 }
 
@@ -982,7 +1036,9 @@ function renderOSEmitidas(){
 function renderFluxoCaixa(){
   const tbody = document.getElementById('fluxo-tbody');
   tbody.innerHTML='';
-  const saldoAtual = state.receber.filter(r=>r.status==='pago').reduce((s,r)=>s+r.valor,0)
+  const totalSaldoInicial = state.contas.reduce((s,c)=>s+(c.saldoInicial||0),0);
+  const saldoAtual = totalSaldoInicial
+                    + state.receber.filter(r=>r.status==='pago').reduce((s,r)=>s+r.valor,0)
                     - state.pagar.filter(p=>p.status==='pago').reduce((s,p)=>s+p.valor,0);
   document.getElementById('dash-saldo-atual').textContent = fmtBRL(saldoAtual);
   let saldo = saldoAtual;
@@ -1048,7 +1104,18 @@ function renderDRE(){
   }
 }
 
-function renderDashboard(){ renderFluxoCaixa(); renderDRE(); }
+function renderDashboard(){ renderFluxoCaixa(); renderDRE(); renderSaldoContasDash(); }
+function renderSaldoContasDash(){
+  const tbody = document.getElementById('dash-contas-tbody');
+  if(!tbody) return;
+  tbody.innerHTML='';
+  state.contas.forEach(c=>{
+    const saldo = calcularSaldoConta(c.id);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${c.nome}</td><td class="num" style="font-weight:600;color:${saldo>=0?'var(--ok)':'var(--danger)'};">${fmtBRL(saldo)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
 
 // ---------- Auto-geração de recorrentes do mês ----------
 function autoGerarRecorrentes(){
@@ -1271,6 +1338,78 @@ function combineBannerMessages(){
 }
 
 // ---------- CUSTOS POR OS ----------
+// ---------- IMPORTAR CUSTOS DA PLANILHA (CSV detalhado por item) ----------
+function triggerImportCustosPlanilha(){ document.getElementById('import-custos-planilha').click(); }
+function baixarModeloCustosCSV(){
+  const csv = "OS;Item;Valor;Centro;Obs\nAGO-01;Massa Poliéster;18,66;Chaparia;\nAGO-01;Primer;37,05;Pintura;\nAGO-01;Tinta Base;125,00;Pintura;\n";
+  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='modelo_custos_os.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+function normalizarCabecalho(txt){
+  return txt.trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,''); // remove acentos
+}
+function importarCustosPlanilha(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const text = e.target.result.replace(/^\uFEFF/, '');
+    const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+    if(lines.length < 2){ alert('Arquivo CSV vazio ou inválido.'); return; }
+    const delimitador = lines[0].includes(';') ? ';' : ',';
+    const parseLinha = (linha)=>{
+      const out=[]; let cur=''; let inQuotes=false;
+      for(let i=0;i<linha.length;i++){
+        const c = linha[i];
+        if(inQuotes){
+          if(c === '"'){ if(linha[i+1] === '"'){ cur+='"'; i++; } else inQuotes=false; }
+          else cur+=c;
+        } else {
+          if(c === '"') inQuotes=true;
+          else if(c === delimitador){ out.push(cur); cur=''; }
+          else cur+=c;
+        }
+      }
+      out.push(cur);
+      return out.map(v=>v.trim());
+    };
+    const cabecalho = parseLinha(lines[0]).map(normalizarCabecalho);
+    const idxOS = cabecalho.findIndex(h=>['os','numero','nº da os','n da os','ordem de servico'].includes(h));
+    const idxItem = cabecalho.findIndex(h=>h==='item');
+    const idxValor = cabecalho.findIndex(h=>['valor','custo'].includes(h));
+    const idxCentro = cabecalho.findIndex(h=>h==='centro');
+    const idxObs = cabecalho.findIndex(h=>['obs','observacao'].includes(h));
+    if(idxOS===-1 || idxItem===-1 || idxValor===-1){
+      alert('O CSV precisa ter pelo menos as colunas OS, Item e Valor. Baixe o modelo pra ver o formato certo.');
+      return;
+    }
+    let importados = 0;
+    for(let i=1;i<lines.length;i++){
+      const cols = parseLinha(lines[i]);
+      const numero = cols[idxOS];
+      const item = cols[idxItem];
+      const valorTxt = (cols[idxValor]||'').trim();
+      const valor = valorTxt.includes(',') ? parseFloat(valorTxt.replace(/\./g,'').replace(',', '.')) : parseFloat(valorTxt);
+      if(!numero || isNaN(valor)) continue;
+      state.os.push({
+        id: uid(), numero, item: item||'Outro',
+        centro: idxCentro!==-1 ? (cols[idxCentro]||'') : '',
+        valor, conta:'',
+        obs: idxObs!==-1 ? (cols[idxObs]||'') : ''
+      });
+      importados++;
+    }
+    renderOS();
+    scheduleSync();
+    event.target.value = '';
+    alert(importados ? `${importados} custo(s) importado(s) com sucesso.` : 'Nenhuma linha válida encontrada no arquivo.');
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
 function addOS(){
   const numero = document.getElementById('os-numero').value.trim();
   const item = document.getElementById('os-item').value;
@@ -1294,9 +1433,10 @@ function renderOS(){
   state.os.forEach(item=>{
     total+=item.valor;
     const tr=document.createElement('tr');
+    const podeEditar = currentRole !== 'financeiro';
     tr.innerHTML = `<td>${item.numero}</td><td>${item.item}</td><td><span class="chip">${item.centro||'—'}</span></td>
       <td>${item.obs||'—'}</td><td class="num">${fmtBRL(item.valor)}</td>
-      <td><button class="btn small danger" onclick="removeOS('${item.id}')">Remover</button></td>`;
+      <td>${podeEditar ? `<button class="btn small danger" onclick="removeOS('${item.id}')">Remover</button>` : ''}</td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('os-empty').style.display = state.os.length? 'none':'block';
@@ -1324,9 +1464,11 @@ function renderLucroPorOS(){
   numeros.forEach(numero=>{
     const g = grupos[numero];
     const lucro = g.receita - g.custos;
+    const pctCusto = g.receita>0 ? (g.custos/g.receita*100) : null;
     const tr=document.createElement('tr');
     tr.innerHTML = `<td>${numero}</td><td class="num">${fmtBRL(g.receita)}</td><td class="num">${fmtBRL(g.custos)}</td>
-      <td class="num" style="color:${lucro>=0?'var(--ok)':'var(--danger)'};font-weight:600;">${fmtBRL(lucro)}</td>`;
+      <td class="num" style="color:${lucro>=0?'var(--ok)':'var(--danger)'};font-weight:600;">${fmtBRL(lucro)}</td>
+      <td class="num">${pctCusto!==null ? pctCusto.toFixed(1)+'%' : '—'}</td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('lucro-empty').style.display = numeros.length? 'none':'block';
