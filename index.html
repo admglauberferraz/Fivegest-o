@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIVE · Painel de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#15181b; --panel:#1e2226; --panel-2:#252a2f; --line:#33393f;
+    --text:#eef0f1; --text-dim:#9aa2a9; --chrome:#c9ced2;
+    --amber:#e3a63a; --amber-dim:#3a2f1a;
+    --ok:#4caf7d; --ok-bg:#16281f;
+    --warn:#e3a63a; --warn-bg:#3a2f1a;
+    --danger:#d9635a; --danger-bg:#3a1f1c;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;}
+  h1,h2,h3,.display{font-family:'Barlow Condensed',sans-serif;letter-spacing:0.02em;}
+
+  header{background:linear-gradient(180deg,#1a1d20,#15181b);border-bottom:1px solid var(--line);padding:22px 24px 0 24px;position:sticky;top:0;z-index:10;}
+  .brand{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;}
+  .brand .mark{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:30px;letter-spacing:0.06em;
+    background:linear-gradient(120deg,var(--chrome),#7b8288 45%,var(--chrome));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .brand .sub{color:var(--text-dim);font-size:13px;text-transform:uppercase;letter-spacing:0.14em;}
+  .alert-banner{background:var(--danger-bg);color:var(--danger);border:1px solid #4a2b28;border-radius:8px;
+    padding:8px 14px;font-size:13px;margin-bottom:12px;display:none;align-items:center;gap:8px;}
+  .alert-banner.show{display:flex;}
+  nav{display:flex;gap:4px;overflow-x:auto;}
+  nav button{background:none;border:none;color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:600;
+    letter-spacing:0.03em;text-transform:uppercase;padding:10px 14px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;}
+  nav button.active{color:var(--text);border-bottom-color:var(--amber);}
+  nav button:hover{color:var(--text);}
+
+  main{max-width:1180px;margin:0 auto;padding:24px 20px 60px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;}
+  @media (max-width:820px){.grid{grid-template-columns:1fr;}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 20px;}
+  .card + .card{margin-top:16px;}
+  .card h3{margin:0 0 14px;font-size:20px;font-weight:700;color:var(--chrome);display:flex;align-items:center;gap:8px;}
+  .card h3 .tag{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;letter-spacing:0.08em;color:var(--amber);
+    border:1px solid var(--amber-dim);background:var(--amber-dim);padding:2px 7px;border-radius:20px;text-transform:uppercase;}
+
+  label{display:block;font-size:12px;color:var(--text-dim);margin:10px 0 5px;text-transform:uppercase;letter-spacing:0.05em;}
+  input,select{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:9px 10px;
+    border-radius:7px;font-size:14px;font-family:'Inter',sans-serif;}
+  input:focus,select:focus{outline:none;border-color:var(--amber);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+
+  button.btn{font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;border-radius:7px;padding:9px 14px;
+    border:1px solid var(--line);background:var(--panel-2);color:var(--text);}
+  button.btn:hover{border-color:var(--chrome);}
+  button.btn.primary{background:var(--amber);border-color:var(--amber);color:#1a1400;}
+  button.btn.primary:hover{filter:brightness(1.08);}
+  button.btn.ghost{background:none;}
+  button.btn.small{padding:5px 10px;font-size:12px;}
+  button.btn.danger{color:var(--danger);border-color:#4a2b28;}
+  .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+
+  .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .filters > div{flex:1;min-width:130px;}
+  .filters label{margin-top:0;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{text-align:left;color:var(--text-dim);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;
+    padding:0 8px 8px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  tbody td{padding:9px 8px;border-bottom:1px solid #262b30;vertical-align:middle;}
+  tbody tr:hover{background:#20252a;}
+  tbody tr.overdue{background:#241c1b;}
+  .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .empty{padding:30px 10px;text-align:center;color:var(--text-dim);font-size:13px;}
+  .pill{padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;}
+  .pill.ok{background:var(--ok-bg);color:var(--ok);}
+  .pill.warn{background:var(--warn-bg);color:var(--warn);}
+  .pill.danger{background:var(--danger-bg);color:var(--danger);}
+  .chip{display:inline-block;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:2px 9px;font-size:11px;color:var(--chrome);}
+
+  .summary-strip{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
+  .stat{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;}
+  .stat .label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;}
+  .stat .value{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;margin-top:2px;}
+  .stat.pos .value{color:var(--ok);}
+  .stat.neg .value{color:var(--danger);}
+  .stat.neutral .value{color:var(--amber);}
+
+  .kanban{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  @media (max-width:820px){.kanban{grid-template-columns:1fr;}}
+  .lane{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px;min-height:120px;}
+  .lane h4{margin:0 0 12px;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;text-transform:uppercase;
+    letter-spacing:0.04em;display:flex;justify-content:space-between;align-items:center;color:var(--chrome);}
+  .lane h4 span.count{font-family:'Inter',sans-serif;font-size:11px;color:var(--text-dim);background:var(--panel-2);padding:2px 8px;border-radius:20px;}
+  .car-card{background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:7px;padding:10px 12px;margin-bottom:10px;}
+  .car-card .plate{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;letter-spacing:0.05em;}
+  .car-card .meta{font-size:12px;color:var(--text-dim);margin-top:2px;}
+  .car-card .foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
+
+  .tag-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+  .tag-item{display:flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:5px 6px 5px 12px;font-size:13px;}
+  .tag-item button{background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;line-height:1;padding:2px 6px;}
+  .subhead{font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin:18px 0 8px;}
+  .subhead:first-child{margin-top:0;}
+
+  footer.note{max-width:1180px;margin:0 auto;padding:0 20px 40px;color:var(--text-dim);font-size:12px;line-height:1.6;}
+  .file-input{display:none;}
+
+  /* Seletor de perfil */
+  #role-gate{
+    position:fixed;inset:0;background:var(--bg);z-index:100;
+    display:flex;align-items:center;justify-content:center;flex-direction:column;padding:20px;
+  }
+  #role-gate .mark{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:40px;letter-spacing:0.06em;
+    background:linear-gradient(120deg,var(--chrome),#7b8288 45%,var(--chrome));-webkit-background-clip:text;background-clip:text;color:transparent;
+    margin-bottom:6px;}
+  #role-gate .sub{color:var(--text-dim);font-size:13px;text-transform:uppercase;letter-spacing:0.14em;margin-bottom:32px;}
+  .role-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:420px;width:100%;}
+  .role-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px 14px;
+    text-align:center;cursor:pointer;color:var(--text);}
+  .role-card:hover{border-color:var(--amber);}
+  .role-card .icon{font-size:26px;margin-bottom:8px;}
+  .role-card .name{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;}
+  .role-card .desc{font-size:11.5px;color:var(--text-dim);margin-top:4px;line-height:1.4;}
+  .role-badge{display:flex;align-items:center;gap:10px;margin-left:auto;}
+  .role-badge .name{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;text-transform:uppercase;color:var(--chrome);}
+  .role-badge button{background:none;border:1px solid var(--line);color:var(--text-dim);border-radius:20px;
+    padding:4px 12px;font-size:11px;cursor:pointer;}
+  .header-top{display:flex;align-items:center;}
+
+  .item-row{display:grid;grid-template-columns:1fr 90px 60px 90px 32px;gap:8px;align-items:center;margin-bottom:8px;}
+  .item-row select,.item-row input{padding:7px 8px;font-size:13px;}
+  .item-row .subtotal{font-size:13px;color:var(--chrome);text-align:right;white-space:nowrap;}
+  .item-row .rm{background:none;border:none;color:var(--danger);cursor:pointer;font-size:15px;}
+  .total-line{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+  .total-line .label{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--chrome);text-transform:uppercase;}
+  .total-line .value{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;color:var(--amber);}
+</style>
+</head>
+<body>
+
+<div id="role-gate">
+  <span class="mark">FIVE</span>
+  <span class="sub">Quem está usando o sistema agora?</span>
+  <div class="role-grid">
+    <div class="role-card" onclick="selectRole('vendas')">
+      <div class="icon">🧾</div><div class="name">Vendas</div>
+      <div class="desc">Lançar nova OS (carro + venda)</div>
+    </div>
+    <div class="role-card" onclick="selectRole('producao')">
+      <div class="icon">🔧</div><div class="name">Produção</div>
+      <div class="desc">Etapas do serviço dos carros</div>
+    </div>
+    <div class="role-card" onclick="selectRole('financeiro')">
+      <div class="icon">💰</div><div class="name">Financeiro</div>
+      <div class="desc">Contas a pagar, a receber e custos</div>
+    </div>
+    <div class="role-card" onclick="selectRole('gestao')">
+      <div class="icon">📊</div><div class="name">Gestão</div>
+      <div class="desc">Vê e edita tudo</div>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="header-top">
+    <div class="brand">
+      <span class="mark">FIVE</span>
+      <span class="sub">Painel de Gestão · Estética Automotiva <span style="opacity:.6;">· v21</span></span>
+    </div>
+    <div class="role-badge">
+      <span class="chip" id="sync-status" style="font-size:11px;"></span>
+      <span class="name" id="role-current-name"></span>
+      <button onclick="showRoleGate()">Trocar perfil</button>
+    </div>
+  </div>
+  <div class="alert-banner" id="alert-banner"></div>
+  <nav>
+    <button class="tab-btn" data-view="lancar" data-roles="vendas,gestao">Lançar OS</button>
+    <button class="tab-btn" data-view="osemitidas" data-roles="vendas,financeiro,gestao">OS Emitidas</button>
+    <button class="tab-btn" data-view="dashboard" data-roles="financeiro,gestao">Dashboard</button>
+    <button class="tab-btn" data-view="pagar" data-roles="financeiro,gestao">Contas a Pagar</button>
+    <button class="tab-btn" data-view="receber" data-roles="financeiro,gestao">Contas a Receber</button>
+    <button class="tab-btn" data-view="carros" data-roles="producao,gestao">Status dos Carros</button>
+    <button class="tab-btn" data-view="os" data-roles="producao,financeiro,gestao">Custos por OS</button>
+    <button class="tab-btn" data-view="config" data-roles="gestao">Configurações</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- CONTAS A PAGAR -->
+  <section id="view-pagar" class="view active">
+    <div class="summary-strip">
+      <div class="stat neg"><div class="label">Pendente</div><div class="value" id="pagar-total-pendente">R$ 0,00</div></div>
+      <div class="stat ok"><div class="label">Pago (no filtro)</div><div class="value" id="pagar-total-pago">R$ 0,00</div></div>
+      <div class="stat neutral"><div class="label">Lançamentos</div><div class="value" id="pagar-count">0</div></div>
+    </div>
+    <div class="grid">
+      <div>
+        <div class="card">
+          <h3>Novo lançamento <span class="tag">A pagar</span></h3>
+          <div class="chip" id="pagar-proximo-numero" style="font-size:13px;padding:6px 12px;margin-bottom:10px;display:inline-block;"></div>
+          <label>Descrição</label>
+          <input type="text" id="pagar-desc" placeholder="Ex: Salário João, Nota fiscal insumos...">
+          <div class="row2">
+            <div><label>Categoria</label>
+              <select id="pagar-categoria">
+                <option>Funcionário</option><option>Prestador de serviço</option><option>Nota / Insumo</option><option>Outro</option>
+              </select>
+            </div>
+            <div><label>Centro de custo</label><select id="pagar-centro"></select></div>
+          </div>
+          <div class="row2">
+            <div><label>Conta / Caixa</label><select id="pagar-conta"></select></div>
+            <div><label>Valor (R$)</label><input type="number" step="0.01" id="pagar-valor" placeholder="0,00"></div>
+          </div>
+          <label>Vencimento</label>
+          <input type="date" id="pagar-data">
+          <div class="actions"><button class="btn primary" onclick="addPagar()">Adicionar</button></div>
+          <div class="actions">
+            <button class="btn" onclick="exportCSV('pagar')">Exportar CSV</button>
+            <button class="btn ghost" onclick="triggerImport('pagar')">Importar CSV</button>
+          </div>
+          <input type="file" class="file-input" id="import-pagar" accept=".csv" onchange="importCSV(event,'pagar')">
+        </div>
+        <div class="card">
+          <h3>Contas fixas recorrentes</h3>
+          <p style="font-size:12px;color:var(--text-dim);margin-top:0;">Cadastre uma vez em <strong>Configurações</strong> e gere os lançamentos do mês com um clique.</p>
+          <div class="actions"><button class="btn primary" onclick="gerarRecorrentes()">Gerar lançamentos deste mês</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Lançamentos</h3>
+        <div class="filters">
+          <div><label>Mês</label><input type="month" id="pagar-filtro-mes"></div>
+          <div><label>Status</label>
+            <select id="pagar-filtro-status"><option value="">Todos</option><option value="pendente">Pendente</option><option value="pago">Pago</option></select>
+          </div>
+          <div><label>Conta</label><select id="pagar-filtro-conta"><option value="">Todas</option></select></div>
+        </div>
+        <table>
+          <thead><tr><th>Nº</th><th>Descrição</th><th>Centro</th><th>Conta</th><th>Vencimento</th><th class="num">Valor</th><th>Status</th><th></th></tr></thead>
+          <tbody id="pagar-tbody"></tbody>
+        </table>
+        <div class="empty" id="pagar-empty">Nenhum lançamento ainda.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTAS A RECEBER -->
+  <section id="view-receber" class="view">
+    <div class="summary-strip">
+      <div class="stat neg"><div class="label">A receber (pendente)</div><div class="value" id="receber-total-pendente">R$ 0,00</div></div>
+      <div class="stat pos"><div class="label">Recebido (no filtro)</div><div class="value" id="receber-total-pago">R$ 0,00</div></div>
+      <div class="stat neutral"><div class="label">Lançamentos</div><div class="value" id="receber-count">0</div></div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h3>Novo lançamento <span class="tag">A receber</span></h3>
+        <label>Cliente</label>
+        <input type="text" id="receber-cliente" placeholder="Nome do cliente">
+        <div class="row2">
+          <div><label>Centro de custo</label><select id="receber-centro"></select></div>
+          <div><label>Nº da OS (opcional)</label><input type="text" id="receber-os" placeholder="Ex: OS-014"></div>
+        </div>
+        <div class="row2">
+          <div><label>Conta / Caixa</label><select id="receber-conta"></select></div>
+          <div><label>Valor (R$)</label><input type="number" step="0.01" id="receber-valor" placeholder="0,00"></div>
+        </div>
+        <label>Data</label>
+        <input type="date" id="receber-data">
+        <div class="actions"><button class="btn primary" onclick="addReceber()">Adicionar</button></div>
+        <div class="actions">
+          <button class="btn" onclick="exportCSV('receber')">Exportar CSV</button>
+          <button class="btn ghost" onclick="triggerImport('receber')">Importar CSV</button>
+        </div>
+        <input type="file" class="file-input" id="import-receber" accept=".csv" onchange="importCSV(event,'receber')">
+      </div>
+      <div class="card">
+        <h3>Lançamentos</h3>
+        <div class="filters">
+          <div><label>Mês</label><input type="month" id="receber-filtro-mes"></div>
+          <div><label>Status</label>
+            <select id="receber-filtro-status"><option value="">Todos</option><option value="pendente">Pendente</option><option value="pago">Recebido</option></select>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Cliente</th><th>Centro</th><th>OS</th><th>Data</th><th class="num">Valor</th><th>Conta</th><th>Status</th><th></th></tr></thead>
+          <tbody id="receber-tbody"></tbody>
+        </table>
+        <div class="empty" id="receber-empty">Nenhum lançamento ainda.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section id="view-dashboard" class="view">
+    <div class="summary-strip">
+      <div class="stat neutral"><div class="label">Saldo atual (recebido − pago)</div><div class="value" id="dash-saldo-atual">R$ 0,00</div></div>
+      <div class="stat" id="dash-saldo-30-card"><div class="label">Saldo projetado em 30 dias</div><div class="value" id="dash-saldo-30">R$ 0,00</div></div>
+      <div class="stat neutral"><div class="label">Faturamento médio/dia (mês)</div><div class="value" id="dash-faturamento-dia">R$ 0,00</div></div>
+    </div>
+    <div class="grid" style="grid-template-columns:1fr 1fr;">
+      <div class="card">
+        <h3>Saldo por conta</h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:0;">Saldo inicial + recebido − pago em cada conta. Ajuste o saldo inicial em Configurações.</p>
+        <table>
+          <thead><tr><th>Conta</th><th class="num">Saldo atual</th></tr></thead>
+          <tbody id="dash-contas-tbody"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Fluxo de caixa projetado (30 dias)</h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:0;">Considera contas a pagar e a receber pendentes com vencimento nos próximos 30 dias.</p>
+        <table>
+          <thead><tr><th>Data</th><th class="num">Entradas</th><th class="num">Saídas</th><th class="num">Saldo</th></tr></thead>
+          <tbody id="fluxo-tbody"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Resumo por centro de custo (DRE)</h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:0;">Receita recebida, custos de OS e despesas pagas, por centro.</p>
+        <table>
+          <thead><tr><th>Centro</th><th class="num">Receita</th><th class="num">Custos OS</th><th class="num">Despesas</th><th class="num">Resultado</th></tr></thead>
+          <tbody id="dre-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- OS EMITIDAS -->
+  <section id="view-osemitidas" class="view">
+    <div class="summary-strip">
+      <div class="stat neutral"><div class="label">Total de OS (no filtro)</div><div class="value" id="osemit-count">0</div></div>
+      <div class="stat pos"><div class="label">Faturado (no filtro)</div><div class="value" id="osemit-total">R$ 0,00</div></div>
+    </div>
+    <div class="card">
+      <h3>Ordens de Serviço emitidas</h3>
+      <div class="filters">
+        <div><label>Buscar (placa, cliente ou nº da OS)</label><input type="text" id="osemit-busca" placeholder="Ex: ABC1D23, João, AGO-03"></div>
+        <div><label>Mês</label><input type="month" id="osemit-filtro-mes"></div>
+      </div>
+      <table>
+        <thead><tr><th>OS</th><th>Data</th><th>Cliente</th><th>Telefone</th><th>Placa</th><th>Itens</th><th class="num">Total</th><th class="num">Dias</th><th class="num">R$/dia</th><th>Status</th></tr></thead>
+        <tbody id="osemit-tbody"></tbody>
+      </table>
+      <div class="empty" id="osemit-empty">Nenhuma OS emitida ainda.</div>
+    </div>
+  </section>
+
+  <!-- LANÇAR OS (Vendas) -->
+  <section id="view-lancar" class="view">
+    <div class="grid" style="grid-template-columns:420px 1fr;">
+      <div class="card">
+        <h3>Nova OS <span class="tag">Vendas</span></h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:0;">Cria o carro (entra em "Em serviço" na Produção) e a venda (em "Contas a Receber") ao mesmo tempo, com o mesmo nº de OS.</p>
+        <div class="chip" id="lancar-proxima-os" style="font-size:13px;padding:6px 12px;margin-bottom:12px;display:inline-block;"></div>
+        <label>Placa</label><input type="text" id="lancar-placa" placeholder="ABC1D23">
+        <label>Cliente</label><input type="text" id="lancar-cliente" placeholder="Nome do cliente">
+        <label>Telefone do cliente</label><input type="tel" id="lancar-telefone" placeholder="(77) 99999-9999">
+        <label>Previsão de entrega</label><input type="date" id="lancar-previsao">
+
+        <div class="subhead">Itens da OS</div>
+        <div id="lancar-itens"></div>
+        <div class="actions"><button class="btn" onclick="addItemLancar()">+ Adicionar serviço</button></div>
+        <div class="total-line"><span class="label">Total</span><span class="value" id="lancar-total">R$ 0,00</span></div>
+        <div class="actions">
+          <button class="btn primary" onclick="lancarOS()">Lançar OS</button>
+          <button class="btn ghost" onclick="limparLancar()">Limpar</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Últimas OS lançadas</h3>
+        <table>
+          <thead><tr><th>OS</th><th>Placa</th><th>Cliente</th><th>Itens</th><th class="num">Total</th></tr></thead>
+          <tbody id="lancar-tbody"></tbody>
+        </table>
+        <div class="empty" id="lancar-empty">Nenhuma OS lançada ainda.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATUS DOS CARROS -->
+  <section id="view-carros" class="view">
+    <div>
+      <div class="kanban">
+        <div class="lane"><h4>Em serviço <span class="count" id="count-servico">0</span></h4>
+          <div class="chip" id="valor-servico" style="display:block;text-align:center;margin-bottom:10px;">R$ 0,00</div>
+          <div id="lane-servico"></div></div>
+        <div class="lane"><h4>Entregue · Não pago <span class="count" id="count-entregue">0</span></h4>
+          <div class="chip" id="valor-entregue" style="display:block;text-align:center;margin-bottom:10px;">R$ 0,00</div>
+          <div id="lane-entregue"></div></div>
+        <div class="lane"><h4>Entregue · Pago <span class="count" id="count-pago">0</span></h4>
+          <div class="chip" id="valor-pago" style="display:block;text-align:center;margin-bottom:10px;">R$ 0,00 (mês)</div>
+          <div id="lane-pago"></div></div>
+      </div>
+    </div>
+    <div class="actions" style="margin-top:16px;">
+      <button class="btn" onclick="exportCSV('carros')">Exportar CSV</button>
+      <button class="btn ghost" onclick="triggerImport('carros')">Importar CSV</button>
+    </div>
+    <input type="file" class="file-input" id="import-carros" accept=".csv" onchange="importCSV(event,'carros')">
+  </section>
+
+  <!-- CUSTOS POR OS -->
+  <section id="view-os" class="view">
+    <div class="summary-strip">
+      <div class="stat neg"><div class="label">Total de custos</div><div class="value" id="os-total">R$ 0,00</div></div>
+      <div class="stat neutral"><div class="label">Itens lançados</div><div class="value" id="os-count">0</div></div>
+    </div>
+    <div class="grid">
+      <div class="card" id="os-import-card">
+        <h3>Importar custos da planilha <span class="tag">CSV</span></h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:0;">
+          Exporta da sua planilha de custo um CSV com as colunas <strong>OS, Item, Valor</strong>
+          (Centro e Observação são opcionais). O sistema reconhece a OS e já lista os custos, um por linha —
+          sem apagar o que já foi lançado antes.
+        </p>
+        <div class="actions">
+          <button class="btn primary" onclick="triggerImportCustosPlanilha()">Importar CSV</button>
+          <button class="btn ghost" onclick="baixarModeloCustosCSV()">Baixar modelo</button>
+        </div>
+        <input type="file" class="file-input" id="import-custos-planilha" accept=".csv" onchange="importarCustosPlanilha(event)">
+      </div>
+      <div class="card" id="os-manual-card">
+        <h3>Lançamento manual <span class="tag">OS</span></h3>
+        <label>Nº da OS / Placa</label>
+        <input type="text" id="os-numero" placeholder="Ex: OS-014 ou ABC1D23">
+        <div class="row2">
+          <div><label>Item</label>
+            <select id="os-item"><option>Polidor (mão de obra)</option><option>Peça</option><option>Insumo / Produto</option><option>Outro</option></select>
+          </div>
+          <div><label>Centro de custo</label><select id="os-centro"></select></div>
+        </div>
+        <div class="row2">
+          <div><label>Custo (R$)</label><input type="number" step="0.01" id="os-valor" placeholder="0,00"></div>
+          <div><label>Conta / Caixa</label><select id="os-conta"></select></div>
+        </div>
+        <label>Observação</label><input type="text" id="os-obs" placeholder="Opcional">
+        <div class="actions"><button class="btn primary" onclick="addOS()">Adicionar</button></div>
+        <div class="actions">
+          <button class="btn" onclick="exportCSV('os')">Exportar backup</button>
+          <button class="btn ghost" onclick="triggerImport('os')">Restaurar backup</button>
+        </div>
+        <input type="file" class="file-input" id="import-os" accept=".csv" onchange="importCSV(event,'os')">
+      </div>
+      <div>
+        <div class="card">
+          <h3>Custos lançados</h3>
+          <table>
+            <thead><tr><th>OS / Placa</th><th>Item</th><th>Centro</th><th>Obs.</th><th class="num">Custo</th><th></th></tr></thead>
+            <tbody id="os-tbody"></tbody>
+          </table>
+          <div class="empty" id="os-empty">Nenhum custo lançado ainda.</div>
+        </div>
+        <div class="card">
+          <h3>Resumo de lucro por OS</h3>
+          <table>
+            <thead><tr><th>OS</th><th class="num">Receita</th><th class="num">Custos</th><th class="num">Lucro</th><th class="num">% Custo</th></tr></thead>
+            <tbody id="lucro-tbody"></tbody>
+          </table>
+          <div class="empty" id="lucro-empty">Lance receitas com o campo "Nº da OS" para ver o lucro aqui.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONFIGURAÇÕES -->
+  <section id="view-config" class="view">
+    <div class="grid">
+      <div>
+        <div class="card">
+          <h3>Contas / Caixas</h3>
+          <label>Nova conta</label>
+          <div class="row2" style="align-items:end;">
+            <input type="text" id="nova-conta" placeholder="Ex: Banco Inter">
+            <button class="btn primary" onclick="addConta()">Adicionar</button>
+          </div>
+          <div class="tag-list" id="contas-list"></div>
+        </div>
+        <div class="card">
+          <h3>Centros de custo</h3>
+          <label>Novo centro</label>
+          <div class="row2" style="align-items:end;">
+            <input type="text" id="novo-centro" placeholder="Ex: Detalhamento">
+            <button class="btn primary" onclick="addCentro()">Adicionar</button>
+          </div>
+          <div class="tag-list" id="centros-list"></div>
+        </div>
+        <div class="card">
+          <h3>Catálogo de serviços</h3>
+          <label>Nome do serviço</label>
+          <input type="text" id="serv-nome" placeholder="Ex: Polimento completo">
+          <div class="row2">
+            <div><label>Centro de custo</label><select id="serv-centro"></select></div>
+            <div><label>Valor padrão (R$)</label><input type="number" step="0.01" id="serv-valor" placeholder="0,00"></div>
+          </div>
+          <div class="actions"><button class="btn primary" onclick="addServico()">Adicionar serviço</button></div>
+          <table style="margin-top:16px;">
+            <thead><tr><th>Serviço</th><th>Centro</th><th class="num">Valor</th><th></th></tr></thead>
+            <tbody id="servicos-tbody"></tbody>
+          </table>
+          <div class="empty" id="servicos-empty">Nenhum serviço cadastrado.</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Contas fixas recorrentes</h3>
+        <label>Descrição</label><input type="text" id="rec-desc" placeholder="Ex: Aluguel, Salário André...">
+        <div class="row3">
+          <div><label>Categoria</label>
+            <select id="rec-categoria"><option>Funcionário</option><option>Prestador de serviço</option><option>Nota / Insumo</option><option>Outro</option></select>
+          </div>
+          <div><label>Centro de custo</label><select id="rec-centro"></select></div>
+          <div><label>Conta</label><select id="rec-conta"></select></div>
+        </div>
+        <div class="row2">
+          <div><label>Valor (R$)</label><input type="number" step="0.01" id="rec-valor" placeholder="0,00"></div>
+          <div><label>Dia do vencimento</label><input type="number" min="1" max="31" id="rec-dia" placeholder="Ex: 5"></div>
+        </div>
+        <div class="actions"><button class="btn primary" onclick="addRecorrente()">Adicionar recorrente</button></div>
+        <table style="margin-top:16px;">
+          <thead><tr><th>Descrição</th><th>Centro</th><th>Dia</th><th class="num">Valor</th><th></th></tr></thead>
+          <tbody id="rec-tbody"></tbody>
+        </table>
+        <div class="empty" id="rec-empty">Nenhuma conta fixa cadastrada.</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="note">
+  Os dados ficam sincronizados em tempo real entre todos que acessarem o sistema (Firebase). Os botões de
+  <strong>Exportar/Importar CSV</strong> em cada seção servem como backup manual, se precisar.
+</footer>
+
+<script>
+// ---------- estado em memória ----------
+const state = {
+  contas: [{id:'caixa',nome:'Caixa Físico'},{id:'banco',nome:'Banco'}],
+  centros: ['Estética','Chaparia','Mecânica','Pintura','Retoque','Peças'],
+  pagar: [], receber: [], carros: [], os: [], recorrentes: [],
+  osCounters: {}, pagCounters: {},
+  servicos: [
+    {id:'srv-polimento', nome:'Polimento', centro:'Estética', valor:500},
+    {id:'srv-vitrificacao', nome:'Vitrificação', centro:'Estética', valor:1000},
+    {id:'srv-pintura-peca', nome:'Pintura Peça', centro:'Pintura', valor:500}
+  ],
+  ordens: []
+};
+
+// ---------- FIREBASE: configuração ----------
+// Cole aqui o firebaseConfig gerado no console do Firebase (Configurações do projeto → Seus apps → Web).
+const firebaseConfig = {
+  apiKey: "AIzaSyDJOb5ACqGiQ8rl-ecP5BzNcS6Rur2hu50",
+  authDomain: "fivegestao-33c24.firebaseapp.com",
+  projectId: "fivegestao-33c24",
+  storageBucket: "fivegestao-33c24.firebasestorage.app",
+  messagingSenderId: "678204269342",
+  appId: "1:678204269342:web:b3ca1ff60cc49508f0df0f"
+};
+
+let db = null;
+let syncAtivo = false;
+let syncTimeout = null;
+let aplicandoRemoto = false;
+let primeiraCargaFeita = false;
+
+function initFirebase(){
+  const badge = document.getElementById('sync-status');
+  if(firebaseConfig.apiKey === "COLE_AQUI"){
+    console.warn('Firebase não configurado ainda — rodando apenas localmente (sem sincronização).');
+    if(badge){ badge.textContent = '⚪ Modo local (sem sync)'; }
+    return;
+  }
+  try{
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    syncAtivo = true;
+    if(badge) badge.textContent = '🟡 Conectando...';
+    const docRef = db.collection('five').doc('estado');
+    docRef.onSnapshot(snap=>{
+      if(!snap.exists){
+        docRef.set(state);
+        return;
+      }
+      const remoto = snap.data();
+      aplicandoRemoto = true;
+      Object.keys(state).forEach(chave=>{
+        if(remoto[chave] !== undefined) state[chave] = remoto[chave];
+      });
+      renderTudo();
+      aplicandoRemoto = false;
+      primeiraCargaFeita = true;
+      if(badge) badge.textContent = '🟢 Sincronizado';
+    }, err=>{
+      console.error('Erro de sincronização Firebase:', err);
+      if(badge) badge.textContent = '🔴 Erro de conexão';
+    });
+  } catch(e){
+    console.error('Falha ao iniciar Firebase:', e);
+    if(badge) badge.textContent = '🔴 Erro ao iniciar';
+  }
+}
+
+function scheduleSync(){
+  if(!syncAtivo || aplicandoRemoto) return;
+  clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(()=>{
+    db.collection('five').doc('estado').set(state).catch(e=>console.error('Erro ao salvar:', e));
+  }, 500);
+}
+
+function renderTudo(){
+  refreshContaSelects(); refreshCentroSelects();
+  renderContas(); renderCentros(); renderRecorrentes(); renderServicos();
+  renderPagar(); renderReceber(); renderCarros(); renderOS(); renderLancar(); renderOSEmitidas();
+}
+
+const MESES_ABREV = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+function osMonthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function peekNextOSNumber(){
+  const now = new Date();
+  const key = osMonthKey(now);
+  const proximo = (state.osCounters[key]||0)+1;
+  return MESES_ABREV[now.getMonth()] + '-' + String(proximo).padStart(2,'0');
+}
+function nextOSNumber(){
+  const now = new Date();
+  const key = osMonthKey(now);
+  state.osCounters[key] = (state.osCounters[key]||0)+1;
+  return MESES_ABREV[now.getMonth()] + '-' + String(state.osCounters[key]).padStart(2,'0');
+}
+
+function peekNextPagNumero(){
+  const now = new Date();
+  const key = osMonthKey(now);
+  const proximo = (state.pagCounters[key]||0)+1;
+  return 'P' + MESES_ABREV[now.getMonth()] + '-' + String(proximo).padStart(2,'0');
+}
+function nextPagNumero(){
+  const now = new Date();
+  const key = osMonthKey(now);
+  state.pagCounters[key] = (state.pagCounters[key]||0)+1;
+  return 'P' + MESES_ABREV[now.getMonth()] + '-' + String(state.pagCounters[key]).padStart(2,'0');
+}
+
+// ---------- perfis ----------
+let currentRole = null;
+const roleNames = {vendas:'Vendas', producao:'Produção', financeiro:'Financeiro', gestao:'Gestão'};
+function selectRole(role){
+  currentRole = role;
+  document.getElementById('role-gate').style.display = 'none';
+  document.getElementById('role-current-name').textContent = roleNames[role];
+  if(!window.__recorrentesAutoGeradas && (!syncAtivo || primeiraCargaFeita)){
+    window.__recorrentesAutoGeradas = true;
+    const n = autoGerarRecorrentes();
+    if(n){ renderPagar(); scheduleSync(); }
+  }
+  const tabs = [...document.querySelectorAll('.tab-btn')];
+  let firstVisible = null;
+  tabs.forEach(btn=>{
+    const allowed = btn.dataset.roles.split(',');
+    const visible = allowed.includes(role);
+    btn.style.display = visible ? '' : 'none';
+    if(visible && !firstVisible) firstVisible = btn;
+  });
+  tabs.forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  if(firstVisible){
+    firstVisible.classList.add('active');
+    document.getElementById('view-'+firstVisible.dataset.view).classList.add('active');
+  }
+  // Custos por OS: financeiro só visualiza, não lança (lançamento é da produção)
+  const somenteLeituraOS = (role === 'financeiro');
+  const importCard = document.getElementById('os-import-card');
+  const manualCard = document.getElementById('os-manual-card');
+  if(importCard) importCard.style.display = somenteLeituraOS ? 'none' : '';
+  if(manualCard) manualCard.style.display = somenteLeituraOS ? 'none' : '';
+}
+function showRoleGate(){ document.getElementById('role-gate').style.display = 'flex'; }
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function fmtBRL(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function currentMonth(){ return new Date().toISOString().slice(0,7); }
+
+// ---------- navegação ----------
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+  });
+});
+
+// ---------- selects dinâmicos (contas / centros) ----------
+const contaSelectIds = ['pagar-conta','receber-conta','os-conta','rec-conta','pagar-filtro-conta'];
+const centroSelectIds = ['pagar-centro','receber-centro','os-centro','rec-centro','serv-centro'];
+
+function refreshContaSelects(){
+  contaSelectIds.forEach(id=>{
+    const sel = document.getElementById(id);
+    const keepFirst = id === 'pagar-filtro-conta';
+    const prev = sel.value;
+    sel.innerHTML = keepFirst ? '<option value="">Todas</option>' : '';
+    state.contas.forEach(c=>{
+      const opt = document.createElement('option');
+      opt.value = c.id; opt.textContent = c.nome;
+      sel.appendChild(opt);
+    });
+    if([...sel.options].some(o=>o.value===prev)) sel.value = prev;
+  });
+}
+function refreshCentroSelects(){
+  centroSelectIds.forEach(id=>{
+    const sel = document.getElementById(id);
+    const prev = sel.value;
+    sel.innerHTML = '';
+    state.centros.forEach(c=>{
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      sel.appendChild(opt);
+    });
+    if([...sel.options].some(o=>o.value===prev)) sel.value = prev;
+  });
+}
+function nomeConta(id){ const c = state.contas.find(x=>x.id===id); return c ? c.nome : (id||'—'); }
+
+// ---------- Configurações: contas ----------
+function addConta(){
+  const input = document.getElementById('nova-conta');
+  const nome = input.value.trim();
+  if(!nome) return;
+  state.contas.push({id:uid(),nome,saldoInicial:0});
+  input.value='';
+  renderContas(); refreshContaSelects();
+  scheduleSync();
+}
+function removeConta(id){
+  if(state.contas.length<=1){ alert('Mantenha ao menos uma conta.'); return; }
+  state.contas = state.contas.filter(c=>c.id!==id);
+  renderContas(); refreshContaSelects();
+  scheduleSync();
+}
+function setSaldoInicial(id, valorTxt){
+  const c = state.contas.find(x=>x.id===id);
+  if(!c) return;
+  const valor = parseFloat(valorTxt);
+  c.saldoInicial = isNaN(valor) ? 0 : valor;
+  renderContas();
+  scheduleSync();
+}
+function calcularSaldoConta(contaId){
+  const c = state.contas.find(x=>x.id===contaId);
+  const inicial = c ? (c.saldoInicial||0) : 0;
+  const recebido = state.receber.filter(r=>r.conta===contaId && r.status==='pago').reduce((s,r)=>s+r.valor,0);
+  const pago = state.pagar.filter(p=>p.conta===contaId && p.status==='pago').reduce((s,p)=>s+p.valor,0);
+  return inicial + recebido - pago;
+}
+function renderContas(){
+  const wrap = document.getElementById('contas-list');
+  wrap.innerHTML='';
+  const table = document.createElement('table');
+  table.innerHTML = `<thead><tr><th>Conta</th><th class="num">Saldo inicial</th><th class="num">Saldo atual</th><th></th></tr></thead>
+    <tbody id="contas-tbody"></tbody>`;
+  wrap.appendChild(table);
+  const tbody = table.querySelector('#contas-tbody');
+  state.contas.forEach(c=>{
+    const saldoAtual = calcularSaldoConta(c.id);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${c.nome}</td>
+      <td class="num"><input type="number" step="0.01" value="${c.saldoInicial||0}" style="width:110px;text-align:right;"
+        onchange="setSaldoInicial('${c.id}', this.value)"></td>
+      <td class="num" style="color:${saldoAtual>=0?'var(--ok)':'var(--danger)'};font-weight:600;">${fmtBRL(saldoAtual)}</td>
+      <td><button class="btn small danger" onclick="removeConta('${c.id}')">Remover</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ---------- Configurações: centros de custo ----------
+function addCentro(){
+  const input = document.getElementById('novo-centro');
+  const nome = input.value.trim();
+  if(!nome || state.centros.includes(nome)) return;
+  state.centros.push(nome);
+  input.value='';
+  renderCentros(); refreshCentroSelects();
+  scheduleSync();
+}
+function removeCentro(nome){
+  state.centros = state.centros.filter(c=>c!==nome);
+  renderCentros(); refreshCentroSelects();
+  scheduleSync();
+}
+function renderCentros(){
+  const wrap = document.getElementById('centros-list');
+  wrap.innerHTML='';
+  state.centros.forEach(c=>{
+    const el = document.createElement('div'); el.className='tag-item';
+    el.innerHTML = `${c}<button onclick="removeCentro('${c}')">✕</button>`;
+    wrap.appendChild(el);
+  });
+}
+
+// ---------- Recorrentes ----------
+function addRecorrente(){
+  const desc = document.getElementById('rec-desc').value.trim();
+  const categoria = document.getElementById('rec-categoria').value;
+  const centro = document.getElementById('rec-centro').value;
+  const conta = document.getElementById('rec-conta').value;
+  const valor = parseFloat(document.getElementById('rec-valor').value);
+  const dia = parseInt(document.getElementById('rec-dia').value);
+  if(!desc || isNaN(valor) || isNaN(dia)){ alert('Preencha descrição, valor e dia de vencimento.'); return; }
+  state.recorrentes.push({id:uid(),desc,categoria,centro,conta,valor,dia});
+  document.getElementById('rec-desc').value='';
+  document.getElementById('rec-valor').value='';
+  document.getElementById('rec-dia').value='';
+  renderRecorrentes();
+  scheduleSync();
+}
+function removeRecorrente(id){ state.recorrentes = state.recorrentes.filter(r=>r.id!==id); renderRecorrentes(); scheduleSync(); }
+function renderRecorrentes(){
+  const tbody = document.getElementById('rec-tbody');
+  tbody.innerHTML='';
+  state.recorrentes.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${r.desc}</td><td><span class="chip">${r.centro||'—'}</span></td><td>Dia ${r.dia}</td>
+      <td class="num">${fmtBRL(r.valor)}</td>
+      <td><button class="btn small danger" onclick="removeRecorrente('${r.id}')">Remover</button></td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('rec-empty').style.display = state.recorrentes.length? 'none':'block';
+}
+function gerarRecorrentes(){
+  if(!state.recorrentes.length){ alert('Cadastre suas contas fixas em Configurações primeiro.'); return; }
+  const month = currentMonth();
+  let gerados = 0;
+  state.recorrentes.forEach(r=>{
+    const jaExiste = state.pagar.some(p=>p.recorrenteId===r.id && p.vencimento && p.vencimento.slice(0,7)===month);
+    if(jaExiste) return;
+    const dia = String(r.dia).padStart(2,'0');
+    const vencimento = `${month}-${dia}`;
+    state.pagar.push({
+      id:uid(), numero:nextPagNumero(), desc:r.desc, categoria:r.categoria, centro:r.centro, conta:r.conta,
+      valor:r.valor, vencimento, status:'pendente', dataPagamento:null, recorrenteId:r.id
+    });
+    gerados++;
+  });
+  renderPagar();
+  if(gerados) scheduleSync();
+  alert(gerados ? `${gerados} lançamento(s) gerado(s) para este mês.` : 'Todas as contas fixas deste mês já foram geradas.');
+}
+
+// ---------- CONTAS A PAGAR ----------
+function addPagar(){
+  const desc = document.getElementById('pagar-desc').value.trim();
+  const categoria = document.getElementById('pagar-categoria').value;
+  const centro = document.getElementById('pagar-centro').value;
+  const conta = document.getElementById('pagar-conta').value;
+  const valor = parseFloat(document.getElementById('pagar-valor').value);
+  const data = document.getElementById('pagar-data').value || todayISO();
+  if(!desc || isNaN(valor)){ alert('Preencha descrição e valor.'); return; }
+  state.pagar.push({id:uid(),numero:nextPagNumero(),desc,categoria,centro,conta,valor,vencimento:data,status:'pendente',dataPagamento:null});
+  document.getElementById('pagar-desc').value='';
+  document.getElementById('pagar-valor').value='';
+  renderPagar();
+  scheduleSync();
+}
+function baixarPagar(id){
+  const item = state.pagar.find(p=>p.id===id);
+  if(!item) return;
+  item.status = item.status==='pago' ? 'pendente' : 'pago';
+  item.dataPagamento = item.status==='pago' ? todayISO() : null;
+  renderPagar();
+  scheduleSync();
+}
+function removePagar(id){ state.pagar = state.pagar.filter(x=>x.id!==id); renderPagar(); scheduleSync(); }
+function renderPagar(){
+  const previewEl = document.getElementById('pagar-proximo-numero');
+  if(previewEl) previewEl.textContent = 'Próximo nº: ' + peekNextPagNumero();
+  const tbody = document.getElementById('pagar-tbody');
+  tbody.innerHTML='';
+  const mes = document.getElementById('pagar-filtro-mes').value;
+  const statusF = document.getElementById('pagar-filtro-status').value;
+  const contaF = document.getElementById('pagar-filtro-conta').value;
+  const today = todayISO();
+  let totalPendente=0, totalPago=0, visiveis=0;
+  state.pagar.forEach(item=>{
+    if(item.status==='pendente') totalPendente += item.valor;
+    if(mes && (!item.vencimento || item.vencimento.slice(0,7)!==mes)) return;
+    if(statusF && item.status!==statusF) return;
+    if(contaF && item.conta!==contaF) return;
+    visiveis++;
+    if(item.status==='pago') totalPago += item.valor;
+    const overdue = item.status==='pendente' && item.vencimento && item.vencimento < today;
+    const tr=document.createElement('tr');
+    if(overdue) tr.className='overdue';
+    const statusPill = item.status==='pago'
+      ? `<span class="pill ok">Pago</span>`
+      : (overdue ? `<span class="pill danger">Atrasado</span>` : `<span class="pill warn">Pendente</span>`);
+    tr.innerHTML = `<td>${item.numero||'—'}</td><td>${item.desc}</td><td><span class="chip">${item.centro||'—'}</span></td><td>${nomeConta(item.conta)}</td>
+      <td>${item.vencimento||'—'}</td><td class="num">${fmtBRL(item.valor)}</td><td>${statusPill}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn small ${item.status==='pago'?'ghost':'primary'}" onclick="baixarPagar('${item.id}')">${item.status==='pago'?'Reabrir':'Baixar'}</button>
+        <button class="btn small danger" onclick="removePagar('${item.id}')">✕</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('pagar-empty').style.display = visiveis? 'none':'block';
+  document.getElementById('pagar-total-pendente').textContent = fmtBRL(totalPendente);
+  document.getElementById('pagar-total-pago').textContent = fmtBRL(totalPago);
+  document.getElementById('pagar-count').textContent = visiveis;
+  renderAlertBanner();
+  if(document.getElementById('contas-list')) renderContas();
+  if(document.getElementById('fluxo-tbody')) renderDashboard();
+}
+
+// ---------- CONTAS A RECEBER ----------
+function addReceber(){
+  const cliente = document.getElementById('receber-cliente').value.trim();
+  const centro = document.getElementById('receber-centro').value;
+  const osId = document.getElementById('receber-os').value.trim();
+  const conta = document.getElementById('receber-conta').value;
+  const valor = parseFloat(document.getElementById('receber-valor').value);
+  const data = document.getElementById('receber-data').value || todayISO();
+  if(!cliente || isNaN(valor)){ alert('Preencha cliente e valor.'); return; }
+  state.receber.push({id:uid(),cliente,centro,osId,conta,valor,data,status:'pendente',dataRecebimento:null});
+  document.getElementById('receber-cliente').value='';
+  document.getElementById('receber-os').value='';
+  document.getElementById('receber-valor').value='';
+  renderReceber();
+  scheduleSync();
+}
+function baixarReceber(id){
+  const item = state.receber.find(r=>r.id===id);
+  if(!item) return;
+  item.status = item.status==='pago' ? 'pendente' : 'pago';
+  item.dataRecebimento = item.status==='pago' ? todayISO() : null;
+  renderReceber();
+  scheduleSync();
+}
+function removeReceber(id){ state.receber = state.receber.filter(x=>x.id!==id); renderReceber(); scheduleSync(); }
+function setContaReceber(id,conta){
+  const item = state.receber.find(r=>r.id===id);
+  if(item){ item.conta = conta; if(document.getElementById('contas-list')) renderContas(); scheduleSync(); }
+}
+function renderReceber(){
+  const tbody = document.getElementById('receber-tbody');
+  tbody.innerHTML='';
+  const mes = document.getElementById('receber-filtro-mes').value;
+  const statusF = document.getElementById('receber-filtro-status').value;
+  let totalPendente=0, totalPago=0, visiveis=0;
+  state.receber.forEach(item=>{
+    if(item.status==='pendente') totalPendente += item.valor;
+    if(mes && (!item.data || item.data.slice(0,7)!==mes)) return;
+    if(statusF && item.status!==statusF) return;
+    visiveis++;
+    if(item.status==='pago') totalPago += item.valor;
+    const statusPill = item.status==='pago' ? `<span class="pill ok">Recebido</span>` : `<span class="pill warn">Pendente</span>`;
+    const contaOptions = state.contas.map(c=>`<option value="${c.id}" ${c.id===item.conta?'selected':''}>${c.nome}</option>`).join('');
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${item.cliente}</td><td><span class="chip">${item.centro||'—'}</span></td><td>${item.osId||'—'}</td>
+      <td>${item.data}</td><td class="num">${fmtBRL(item.valor)}</td>
+      <td><select style="min-width:110px;" onchange="setContaReceber('${item.id}',this.value)"><option value="">Sem conta</option>${contaOptions}</select></td>
+      <td>${statusPill}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn small ${item.status==='pago'?'ghost':'primary'}" onclick="baixarReceber('${item.id}')">${item.status==='pago'?'Reabrir':'Baixar'}</button>
+        <button class="btn small danger" onclick="removeReceber('${item.id}')">✕</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('receber-empty').style.display = visiveis? 'none':'block';
+  document.getElementById('receber-total-pendente').textContent = fmtBRL(totalPendente);
+  document.getElementById('receber-total-pago').textContent = fmtBRL(totalPago);
+  document.getElementById('receber-count').textContent = visiveis;
+  renderLucroPorOS();
+  if(document.getElementById('contas-list')) renderContas();
+  if(document.getElementById("fluxo-tbody")) renderDashboard();
+}
+
+// ---------- OS EMITIDAS ----------
+function statusOSLabel(osId){
+  const car = state.carros.find(c=>c.osId===osId);
+  if(!car) return '<span class="pill">—</span>';
+  const map = {servico:'<span class="pill warn">Em serviço</span>',
+               entregue:'<span class="pill danger">Entregue · Não pago</span>',
+               pago:'<span class="pill ok">Concluído</span>'};
+  return map[car.status] || '—';
+}
+function diasOS(o){
+  const abertura = new Date(o.data+'T00:00:00');
+  const fimISO = o.dataConclusao || todayISO();
+  const fim = new Date(fimISO+'T00:00:00');
+  const dias = Math.round((fim-abertura)/86400000);
+  return {dias: Math.max(dias,1), concluida: !!o.dataConclusao};
+}
+function renderOSEmitidas(){
+  const tbody = document.getElementById('osemit-tbody');
+  if(!tbody) return;
+  tbody.innerHTML='';
+  const busca = (document.getElementById('osemit-busca').value||'').trim().toLowerCase();
+  const mes = document.getElementById('osemit-filtro-mes').value;
+  let total=0, count=0;
+  const ordens = [...state.ordens].reverse();
+  ordens.forEach(o=>{
+    if(mes && (!o.data || o.data.slice(0,7)!==mes)) return;
+    const alvo = `${o.id} ${o.placa} ${o.cliente}`.toLowerCase();
+    if(busca && !alvo.includes(busca)) return;
+    total += o.total; count++;
+    const itensTxt = o.itens.map(i=>`${i.nome}${i.qtd>1?' x'+i.qtd:''}`).join(', ');
+    const {dias, concluida} = diasOS(o);
+    const valorDia = o.total/dias;
+    const diasTxt = concluida ? `${dias}` : `${dias} (em curso)`;
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${o.id}</td><td>${o.data}</td><td>${o.cliente}</td><td>${o.telefone||'—'}</td>
+      <td>${o.placa}</td><td style="font-size:12px;color:var(--text-dim);">${itensTxt}</td>
+      <td class="num">${fmtBRL(o.total)}</td><td class="num">${diasTxt}</td><td class="num">${fmtBRL(valorDia)}</td>
+      <td>${statusOSLabel(o.id)}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('osemit-empty').style.display = count? 'none':'block';
+  document.getElementById('osemit-count').textContent = count;
+  document.getElementById('osemit-total').textContent = fmtBRL(total);
+}
+
+// ---------- DASHBOARD: fluxo de caixa projetado ----------
+function renderFluxoCaixa(){
+  const tbody = document.getElementById('fluxo-tbody');
+  tbody.innerHTML='';
+  const totalSaldoInicial = state.contas.reduce((s,c)=>s+(c.saldoInicial||0),0);
+  const saldoAtual = totalSaldoInicial
+                    + state.receber.filter(r=>r.status==='pago').reduce((s,r)=>s+r.valor,0)
+                    - state.pagar.filter(p=>p.status==='pago').reduce((s,p)=>s+p.valor,0);
+  document.getElementById('dash-saldo-atual').textContent = fmtBRL(saldoAtual);
+  let saldo = saldoAtual;
+  const today = new Date();
+  for(let i=0;i<30;i++){
+    const d = new Date(today); d.setDate(d.getDate()+i);
+    const iso = d.toISOString().slice(0,10);
+    const entradas = state.receber.filter(r=>r.status==='pendente' && r.data===iso).reduce((s,r)=>s+r.valor,0);
+    const saidas = state.pagar.filter(p=>p.status==='pendente' && p.vencimento===iso).reduce((s,p)=>s+p.valor,0);
+    if(entradas===0 && saidas===0) continue;
+    saldo += entradas - saidas;
+    const tr=document.createElement('tr');
+    const label = d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + (i===0?' (hoje)':'');
+    tr.innerHTML = `<td>${label}</td><td class="num" style="color:var(--ok);">${entradas?fmtBRL(entradas):'—'}</td>
+      <td class="num" style="color:var(--danger);">${saidas?fmtBRL(saidas):'—'}</td>
+      <td class="num" style="font-weight:600;color:${saldo>=0?'var(--ok)':'var(--danger)'};">${fmtBRL(saldo)}</td>`;
+    tbody.appendChild(tr);
+  }
+  if(!tbody.children.length){
+    tbody.innerHTML = `<tr><td colspan="4" class="empty">Nenhum vencimento pendente nos próximos 30 dias.</td></tr>`;
+  }
+  const saldoCard = document.getElementById('dash-saldo-30-card');
+  saldoCard.className = 'stat ' + (saldo>=0 ? 'pos':'neg');
+  document.getElementById('dash-saldo-30').textContent = fmtBRL(saldo);
+
+  const mesAtual = currentMonth();
+  const totalRecebidoMes = state.receber.filter(r=>r.status==='pago' && r.dataRecebimento && r.dataRecebimento.slice(0,7)===mesAtual)
+                                         .reduce((s,r)=>s+r.valor,0);
+  const diaAtual = today.getDate();
+  document.getElementById('dash-faturamento-dia').textContent = fmtBRL(totalRecebidoMes/diaAtual);
+}
+
+// ---------- DASHBOARD: DRE por centro de custo ----------
+function renderDRE(){
+  const tbody = document.getElementById('dre-tbody');
+  tbody.innerHTML='';
+  const centrosUsados = new Set(state.centros);
+  [...state.receber,...state.os,...state.pagar].forEach(x=>{ if(x.centro) centrosUsados.add(x.centro); });
+  let totReceita=0, totCustos=0, totDespesas=0;
+  [...centrosUsados].forEach(centro=>{
+    const receita = state.receber.filter(r=>r.centro===centro && r.status==='pago').reduce((s,r)=>s+r.valor,0);
+    const custos = state.os.filter(c=>c.centro===centro).reduce((s,c)=>s+c.valor,0);
+    const despesas = state.pagar.filter(p=>p.centro===centro && p.status==='pago').reduce((s,p)=>s+p.valor,0);
+    if(receita===0 && custos===0 && despesas===0) return;
+    totReceita+=receita; totCustos+=custos; totDespesas+=despesas;
+    const resultado = receita - custos - despesas;
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td><span class="chip">${centro}</span></td><td class="num">${fmtBRL(receita)}</td>
+      <td class="num">${fmtBRL(custos)}</td><td class="num">${fmtBRL(despesas)}</td>
+      <td class="num" style="font-weight:600;color:${resultado>=0?'var(--ok)':'var(--danger)'};">${fmtBRL(resultado)}</td>`;
+    tbody.appendChild(tr);
+  });
+  if(!tbody.children.length){
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">Sem lançamentos pagos/recebidos ainda.</td></tr>`;
+  } else {
+    const totalResultado = totReceita - totCustos - totDespesas;
+    const tr=document.createElement('tr');
+    tr.style.borderTop = '2px solid var(--line)';
+    tr.innerHTML = `<td style="font-weight:700;">Total</td><td class="num" style="font-weight:700;">${fmtBRL(totReceita)}</td>
+      <td class="num" style="font-weight:700;">${fmtBRL(totCustos)}</td><td class="num" style="font-weight:700;">${fmtBRL(totDespesas)}</td>
+      <td class="num" style="font-weight:700;color:${totalResultado>=0?'var(--ok)':'var(--danger)'};">${fmtBRL(totalResultado)}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function renderDashboard(){ renderFluxoCaixa(); renderDRE(); renderSaldoContasDash(); }
+function renderSaldoContasDash(){
+  const tbody = document.getElementById('dash-contas-tbody');
+  if(!tbody) return;
+  tbody.innerHTML='';
+  state.contas.forEach(c=>{
+    const saldo = calcularSaldoConta(c.id);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${c.nome}</td><td class="num" style="font-weight:600;color:${saldo>=0?'var(--ok)':'var(--danger)'};">${fmtBRL(saldo)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ---------- Auto-geração de recorrentes do mês ----------
+function autoGerarRecorrentes(){
+  if(!state.recorrentes.length) return;
+  const month = currentMonth();
+  let gerados = 0;
+  state.recorrentes.forEach(r=>{
+    const jaExiste = state.pagar.some(p=>p.recorrenteId===r.id && p.vencimento && p.vencimento.slice(0,7)===month);
+    if(jaExiste) return;
+    const dia = String(r.dia).padStart(2,'0');
+    state.pagar.push({id:uid(),numero:nextPagNumero(),desc:r.desc,categoria:r.categoria,centro:r.centro,conta:r.conta,
+      valor:r.valor,vencimento:`${month}-${dia}`,status:'pendente',dataPagamento:null,recorrenteId:r.id});
+    gerados++;
+  });
+  return gerados;
+}
+function addServico(){
+  const nome = document.getElementById('serv-nome').value.trim();
+  const centro = document.getElementById('serv-centro').value;
+  const valor = parseFloat(document.getElementById('serv-valor').value);
+  if(!nome || isNaN(valor)){ alert('Preencha nome do serviço e valor padrão.'); return; }
+  state.servicos.push({id:uid(),nome,centro,valor});
+  document.getElementById('serv-nome').value='';
+  document.getElementById('serv-valor').value='';
+  renderServicos();
+  scheduleSync();
+}
+function removeServico(id){ state.servicos = state.servicos.filter(s=>s.id!==id); renderServicos(); scheduleSync(); }
+function renderServicos(){
+  const tbody = document.getElementById('servicos-tbody');
+  tbody.innerHTML='';
+  state.servicos.forEach(s=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${s.nome}</td><td><span class="chip">${s.centro||'—'}</span></td>
+      <td class="num">${fmtBRL(s.valor)}</td>
+      <td><button class="btn small danger" onclick="removeServico('${s.id}')">Excluir</button></td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('servicos-empty').style.display = state.servicos.length? 'none':'block';
+}
+
+// ---------- LANÇAR OS (Vendas) — itens múltiplos ----------
+let lancarItens = []; // {rowId, servicoId, nome, centro, valorUnit, qtd}
+
+function addItemLancar(){
+  if(!state.servicos.length){ alert('Nenhum serviço cadastrado ainda. Peça pra Gestão cadastrar em Configurações.'); return; }
+  const rowId = uid();
+  const primeiro = state.servicos[0];
+  lancarItens.push({rowId, servicoId: primeiro.id, nome: primeiro.nome, centro: primeiro.centro, valorUnit: primeiro.valor, qtd: 1});
+  renderItensLancar();
+}
+function removeItemLancar(rowId){
+  lancarItens = lancarItens.filter(i=>i.rowId!==rowId);
+  renderItensLancar();
+}
+function updateItemLancar(rowId, field, value){
+  const item = lancarItens.find(i=>i.rowId===rowId);
+  if(!item) return;
+  if(field==='servicoId'){
+    const serv = state.servicos.find(s=>s.id===value);
+    item.servicoId = value; item.nome = serv.nome; item.centro = serv.centro; item.valorUnit = serv.valor;
+  } else if(field==='valorUnit'){
+    item.valorUnit = parseFloat(value) || 0;
+  } else if(field==='qtd'){
+    item.qtd = parseInt(value) || 1;
+  }
+  renderItensLancar();
+}
+function renderItensLancar(){
+  const container = document.getElementById('lancar-itens');
+  container.innerHTML='';
+  lancarItens.forEach(item=>{
+    const row = document.createElement('div'); row.className='item-row';
+    const options = state.servicos.map(s=>`<option value="${s.id}" ${s.id===item.servicoId?'selected':''}>${s.nome}</option>`).join('');
+    row.innerHTML = `
+      <select onchange="updateItemLancar('${item.rowId}','servicoId',this.value)">${options}</select>
+      <input type="number" step="0.01" value="${item.valorUnit}" onchange="updateItemLancar('${item.rowId}','valorUnit',this.value)">
+      <input type="number" min="1" value="${item.qtd}" onchange="updateItemLancar('${item.rowId}','qtd',this.value)">
+      <span class="subtotal">${fmtBRL(item.valorUnit*item.qtd)}</span>
+      <button class="rm" onclick="removeItemLancar('${item.rowId}')">✕</button>`;
+    container.appendChild(row);
+  });
+  const total = lancarItens.reduce((s,i)=>s+i.valorUnit*i.qtd,0);
+  document.getElementById('lancar-total').textContent = fmtBRL(total);
+}
+function limparLancar(){
+  document.getElementById('lancar-placa').value='';
+  document.getElementById('lancar-cliente').value='';
+  document.getElementById('lancar-telefone').value='';
+  document.getElementById('lancar-previsao').value='';
+  lancarItens = [];
+  renderItensLancar();
+}
+function lancarOS(){
+  const placa = document.getElementById('lancar-placa').value.trim().toUpperCase();
+  const cliente = document.getElementById('lancar-cliente').value.trim();
+  const telefone = document.getElementById('lancar-telefone').value.trim();
+  const previsao = document.getElementById('lancar-previsao').value;
+  if(!placa || !cliente){ alert('Preencha placa e cliente.'); return; }
+  if(!lancarItens.length){ alert('Adicione pelo menos um serviço.'); return; }
+  const total = lancarItens.reduce((s,i)=>s+i.valorUnit*i.qtd,0);
+  const centroPrincipal = [...new Set(lancarItens.map(i=>i.centro))].length===1 ? lancarItens[0].centro : 'Múltiplos';
+  const osId = nextOSNumber();
+  state.carros.push({id:uid(),placa,cliente,telefone,osId,centro:centroPrincipal,previsao,status:'servico'});
+  state.receber.push({id:uid(),cliente,centro:centroPrincipal,osId,conta:'',valor:total,data:todayISO(),status:'pendente',dataRecebimento:null});
+  state.ordens.push({id:osId,cliente,placa,telefone,previsao,itens:lancarItens.map(i=>({nome:i.nome,centro:i.centro,valorUnit:i.valorUnit,qtd:i.qtd})),total,data:todayISO()});
+  limparLancar();
+  renderCarros(); renderReceber(); renderLancar(); renderOSEmitidas();
+  scheduleSync();
+}
+function renderLancar(){
+  document.getElementById('lancar-proxima-os').textContent = 'Próxima OS: ' + peekNextOSNumber();
+  const tbody = document.getElementById('lancar-tbody');
+  tbody.innerHTML='';
+  const ultimas = state.ordens.slice(-8).reverse();
+  ultimas.forEach(o=>{
+    const tr=document.createElement('tr');
+    const itensTxt = o.itens.map(i=>`${i.nome}${i.qtd>1?' x'+i.qtd:''}`).join(', ');
+    tr.innerHTML = `<td>${o.id}</td><td>${o.placa}</td><td>${o.cliente}</td><td style="font-size:12px;color:var(--text-dim);">${itensTxt}</td><td class="num">${fmtBRL(o.total)}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('lancar-empty').style.display = ultimas.length? 'none':'block';
+}
+function advanceCarro(id){
+  const car = state.carros.find(c=>c.id===id);
+  if(!car) return;
+  if(car.status==='servico') car.status='entregue';
+  else if(car.status==='entregue'){
+    car.status='pago';
+    car.dataConclusao = todayISO();
+    if(car.osId){
+      state.receber.filter(r=>r.osId===car.osId && r.status!=='pago').forEach(r=>{
+        r.status='pago'; r.dataRecebimento=todayISO();
+      });
+      const ordem = state.ordens.find(o=>o.id===car.osId);
+      if(ordem) ordem.dataConclusao = todayISO();
+      renderReceber();
+    }
+  }
+  renderCarros();
+  if(document.getElementById('osemit-tbody')) renderOSEmitidas();
+  scheduleSync();
+}
+function removeCarro(id){ state.carros = state.carros.filter(c=>c.id!==id); renderCarros(); scheduleSync(); }
+function valorReceberDaOS(osId){
+  if(!osId) return 0;
+  return state.receber.filter(r=>r.osId===osId).reduce((s,r)=>s+r.valor,0);
+}
+function renderCarros(){
+  const lanes = {servico:document.getElementById('lane-servico'),entregue:document.getElementById('lane-entregue'),pago:document.getElementById('lane-pago')};
+  Object.values(lanes).forEach(l=>l.innerHTML='');
+  const counts = {servico:0,entregue:0,pago:0};
+  const valores = {servico:0,entregue:0,pago:0};
+  const nextLabel = {servico:'Marcar como entregue',entregue:'Marcar como pago'};
+  const today = todayISO();
+  const mesAtual = currentMonth();
+  let atrasados = 0;
+  state.carros.forEach(car=>{
+    counts[car.status]++;
+    const valorOS = valorReceberDaOS(car.osId);
+    if(car.status==='servico' || car.status==='entregue'){
+      valores[car.status] += valorOS;
+    } else if(car.status==='pago'){
+      const rec = state.receber.find(r=>r.osId===car.osId);
+      const dataRef = rec && rec.dataRecebimento ? rec.dataRecebimento : car.previsao;
+      if(dataRef && dataRef.slice(0,7)===mesAtual) valores.pago += valorOS;
+    }
+    const div=document.createElement('div'); div.className='car-card';
+    const atrasado = car.status==='servico' && car.previsao && car.previsao < today;
+    if(atrasado){ div.style.borderLeftColor = 'var(--danger)'; atrasados++; }
+    const btn = car.status!=='pago'
+      ? `<button class="btn small primary" onclick="advanceCarro('${car.id}')">${nextLabel[car.status]}</button>`
+      : `<span class="pill ok">Concluído</span>`;
+    let previsaoTxt = '';
+    if(car.previsao){
+      const previsaoFmt = car.previsao.split('-').reverse().join('/');
+      previsaoTxt = atrasado
+        ? `<div class="meta" style="color:var(--danger);font-weight:600;">⚠ Atrasado · previsão ${previsaoFmt}</div>`
+        : `<div class="meta">Previsão de entrega: ${previsaoFmt}</div>`;
+    }
+    let telefoneTxt = '';
+    if(car.telefone){
+      const soDigitos = car.telefone.replace(/\D/g,'');
+      telefoneTxt = `<div class="meta">📞 <a href="https://wa.me/55${soDigitos}" target="_blank" style="color:var(--chrome);">${car.telefone}</a></div>`;
+    }
+    div.innerHTML = `<div class="plate">${car.placa}</div>
+      <div class="meta">${car.cliente}${car.osId? ' · '+car.osId:''}${car.centro? ' · '+car.centro:''}${valorOS? ' · '+fmtBRL(valorOS):''}</div>
+      ${telefoneTxt}
+      ${previsaoTxt}
+      <div class="foot">${btn}<button class="btn small ghost" onclick="removeCarro('${car.id}')">✕</button></div>`;
+    lanes[car.status].appendChild(div);
+  });
+  document.getElementById('valor-servico').textContent = fmtBRL(valores.servico);
+  document.getElementById('valor-entregue').textContent = fmtBRL(valores.entregue);
+  document.getElementById('valor-pago').textContent = fmtBRL(valores.pago) + ' (mês)';
+  document.getElementById('count-servico').textContent=counts.servico;
+  document.getElementById('count-entregue').textContent=counts.entregue;
+  document.getElementById('count-pago').textContent=counts.pago;
+  renderAtrasoBanner(atrasados);
+}
+function renderAtrasoBanner(atrasados){
+  const banner = document.getElementById('alert-banner');
+  const msgPagar = banner.dataset.pagarMsg || '';
+  if(atrasados>0){
+    banner.dataset.atrasoMsg = `🚗 ${atrasados} carro(s) atrasado(s) na Produção.`;
+  } else {
+    banner.dataset.atrasoMsg = '';
+  }
+  combineBannerMessages();
+}
+function combineBannerMessages(){
+  const banner = document.getElementById('alert-banner');
+  const parts = [banner.dataset.pagarMsg, banner.dataset.atrasoMsg].filter(Boolean);
+  if(parts.length){
+    banner.textContent = parts.join('   ·   ');
+    banner.classList.add('show');
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
+// ---------- CUSTOS POR OS ----------
+// ---------- IMPORTAR CUSTOS DA PLANILHA (CSV detalhado por item) ----------
+function triggerImportCustosPlanilha(){ document.getElementById('import-custos-planilha').click(); }
+function baixarModeloCustosCSV(){
+  const csv = "OS;Item;Valor;Centro;Obs\nAGO-01;Massa Poliéster;18,66;Chaparia;\nAGO-01;Primer;37,05;Pintura;\nAGO-01;Tinta Base;125,00;Pintura;\n";
+  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='modelo_custos_os.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+function normalizarCabecalho(txt){
+  return txt.trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,''); // remove acentos
+}
+function importarCustosPlanilha(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const text = e.target.result.replace(/^\uFEFF/, '');
+    const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+    if(lines.length < 2){ alert('Arquivo CSV vazio ou inválido.'); return; }
+    const delimitador = lines[0].includes(';') ? ';' : ',';
+    const parseLinha = (linha)=>{
+      const out=[]; let cur=''; let inQuotes=false;
+      for(let i=0;i<linha.length;i++){
+        const c = linha[i];
+        if(inQuotes){
+          if(c === '"'){ if(linha[i+1] === '"'){ cur+='"'; i++; } else inQuotes=false; }
+          else cur+=c;
+        } else {
+          if(c === '"') inQuotes=true;
+          else if(c === delimitador){ out.push(cur); cur=''; }
+          else cur+=c;
+        }
+      }
+      out.push(cur);
+      return out.map(v=>v.trim());
+    };
+    const cabecalho = parseLinha(lines[0]).map(normalizarCabecalho);
+    const idxOS = cabecalho.findIndex(h=>['os','numero','nº da os','n da os','ordem de servico'].includes(h));
+    const idxItem = cabecalho.findIndex(h=>h==='item');
+    const idxValor = cabecalho.findIndex(h=>['valor','custo'].includes(h));
+    const idxCentro = cabecalho.findIndex(h=>h==='centro');
+    const idxObs = cabecalho.findIndex(h=>['obs','observacao'].includes(h));
+    if(idxOS===-1 || idxItem===-1 || idxValor===-1){
+      alert('O CSV precisa ter pelo menos as colunas OS, Item e Valor. Baixe o modelo pra ver o formato certo.');
+      return;
+    }
+    let importados = 0;
+    for(let i=1;i<lines.length;i++){
+      const cols = parseLinha(lines[i]);
+      const numero = cols[idxOS];
+      const item = cols[idxItem];
+      const valorTxt = (cols[idxValor]||'').trim();
+      const valor = valorTxt.includes(',') ? parseFloat(valorTxt.replace(/\./g,'').replace(',', '.')) : parseFloat(valorTxt);
+      if(!numero || isNaN(valor)) continue;
+      state.os.push({
+        id: uid(), numero, item: item||'Outro',
+        centro: idxCentro!==-1 ? (cols[idxCentro]||'') : '',
+        valor, conta:'',
+        obs: idxObs!==-1 ? (cols[idxObs]||'') : ''
+      });
+      importados++;
+    }
+    renderOS();
+    scheduleSync();
+    event.target.value = '';
+    alert(importados ? `${importados} custo(s) importado(s) com sucesso.` : 'Nenhuma linha válida encontrada no arquivo.');
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function addOS(){
+  const numero = document.getElementById('os-numero').value.trim();
+  const item = document.getElementById('os-item').value;
+  const centro = document.getElementById('os-centro').value;
+  const valor = parseFloat(document.getElementById('os-valor').value);
+  const conta = document.getElementById('os-conta').value;
+  const obs = document.getElementById('os-obs').value.trim();
+  if(!numero || isNaN(valor)){ alert('Preencha nº da OS e custo.'); return; }
+  state.os.push({id:uid(),numero,item,centro,valor,conta,obs});
+  document.getElementById('os-numero').value='';
+  document.getElementById('os-valor').value='';
+  document.getElementById('os-obs').value='';
+  renderOS();
+  scheduleSync();
+}
+function removeOS(id){ state.os = state.os.filter(x=>x.id!==id); renderOS(); scheduleSync(); }
+function renderOS(){
+  const tbody = document.getElementById('os-tbody');
+  tbody.innerHTML='';
+  let total=0;
+  state.os.forEach(item=>{
+    total+=item.valor;
+    const tr=document.createElement('tr');
+    const podeEditar = currentRole !== 'financeiro';
+    tr.innerHTML = `<td>${item.numero}</td><td>${item.item}</td><td><span class="chip">${item.centro||'—'}</span></td>
+      <td>${item.obs||'—'}</td><td class="num">${fmtBRL(item.valor)}</td>
+      <td>${podeEditar ? `<button class="btn small danger" onclick="removeOS('${item.id}')">Remover</button>` : ''}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('os-empty').style.display = state.os.length? 'none':'block';
+  document.getElementById('os-total').textContent = fmtBRL(total);
+  document.getElementById('os-count').textContent = state.os.length;
+  renderLucroPorOS();
+  if(document.getElementById('fluxo-tbody')) renderDashboard();
+}
+
+function renderLucroPorOS(){
+  const tbody = document.getElementById('lucro-tbody');
+  tbody.innerHTML='';
+  const grupos = {};
+  state.os.forEach(c=>{
+    if(!c.numero) return;
+    grupos[c.numero] = grupos[c.numero] || {custos:0,receita:0};
+    grupos[c.numero].custos += c.valor;
+  });
+  state.receber.forEach(r=>{
+    if(!r.osId) return;
+    grupos[r.osId] = grupos[r.osId] || {custos:0,receita:0};
+    grupos[r.osId].receita += r.valor;
+  });
+  const numeros = Object.keys(grupos);
+  numeros.forEach(numero=>{
+    const g = grupos[numero];
+    const lucro = g.receita - g.custos;
+    const pctCusto = g.receita>0 ? (g.custos/g.receita*100) : null;
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${numero}</td><td class="num">${fmtBRL(g.receita)}</td><td class="num">${fmtBRL(g.custos)}</td>
+      <td class="num" style="color:${lucro>=0?'var(--ok)':'var(--danger)'};font-weight:600;">${fmtBRL(lucro)}</td>
+      <td class="num">${pctCusto!==null ? pctCusto.toFixed(1)+'%' : '—'}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('lucro-empty').style.display = numeros.length? 'none':'block';
+}
+
+// ---------- Alerta de vencidos ----------
+function renderAlertBanner(){
+  const today = todayISO();
+  const vencidos = state.pagar.filter(p=>p.status==='pendente' && p.vencimento && p.vencimento<today).length;
+  const banner = document.getElementById('alert-banner');
+  banner.dataset.pagarMsg = vencidos>0 ? `⚠ Você tem ${vencidos} conta(s) a pagar vencida(s).` : '';
+  combineBannerMessages();
+}
+
+// ---------- CSV export / import ----------
+const csvSchemas = {
+  pagar:  {fields:['numero','desc','categoria','centro','conta','valor','vencimento','status','dataPagamento'],
+           headers:['Numero','Descricao','Categoria','Centro','Conta','Valor','Vencimento','Status','DataPagamento']},
+  receber:{fields:['cliente','centro','osId','conta','valor','data','status','dataRecebimento'],
+           headers:['Cliente','Centro','OS','Conta','Valor','Data','Status','DataRecebimento']},
+  carros: {fields:['placa','cliente','telefone','osId','centro','previsao','status','dataConclusao'], headers:['Placa','Cliente','Telefone','OS','Centro','Previsao','Status','DataConclusao']},
+  os:     {fields:['numero','item','centro','valor','conta','obs'], headers:['NumeroOS','Item','Centro','Valor','Conta','Obs']}
+};
+
+function csvEscape(v){ v=String(v ?? ''); if(/[",\n]/.test(v)) return '"'+v.replace(/"/g,'""')+'"'; return v; }
+
+function exportCSV(section){
+  const schema = csvSchemas[section];
+  const rows = state[section];
+  if(!rows.length){ alert('Não há lançamentos para exportar nesta seção.'); return; }
+  let csv = schema.headers.join(';') + '\n';
+  rows.forEach(r=>{ csv += schema.fields.map(f=>csvEscape(r[f])).join(';') + '\n'; });
+  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=`five_${section}_${todayISO()}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+function triggerImport(section){ document.getElementById('import-'+section).click(); }
+function parseCSVLine(line){
+  const out=[]; let cur=''; let inQuotes=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(inQuotes){ if(c==='"'){ if(line[i+1]==='"'){cur+='"';i++;} else inQuotes=false; } else cur+=c; }
+    else { if(c==='"') inQuotes=true; else if(c===';'){out.push(cur);cur='';} else cur+=c; }
+  }
+  out.push(cur); return out;
+}
+function importCSV(event, section){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const text = e.target.result.replace(/^\uFEFF/, '');
+    const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+    if(lines.length < 2){ alert('Arquivo CSV vazio ou inválido.'); return; }
+    const schema = csvSchemas[section];
+    const imported = [];
+    for(let i=1;i<lines.length;i++){
+      const cols = parseCSVLine(lines[i]);
+      const obj = {id:uid()};
+      schema.fields.forEach((f,idx)=>{ obj[f] = (f==='valor') ? (parseFloat(cols[idx])||0) : (cols[idx] ?? ''); });
+      if((section==='pagar'||section==='receber') && !obj.status) obj.status='pendente';
+      if(section==='carros' && !obj.status) obj.status='servico';
+      imported.push(obj);
+    }
+    state[section] = imported;
+    ({pagar:renderPagar, receber:renderReceber, carros:renderCarros, os:renderOS})[section]();
+    event.target.value = '';
+    scheduleSync();
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// ---------- filtros: listeners ----------
+['pagar-filtro-mes','pagar-filtro-status','pagar-filtro-conta'].forEach(id=>document.getElementById(id).addEventListener('change',renderPagar));
+['receber-filtro-mes','receber-filtro-status'].forEach(id=>document.getElementById(id).addEventListener('change',renderReceber));
+document.getElementById('osemit-busca').addEventListener('input',renderOSEmitidas);
+document.getElementById('osemit-filtro-mes').addEventListener('change',renderOSEmitidas);
+
+// ---------- init ----------
+document.getElementById('pagar-filtro-mes').value = currentMonth();
+document.getElementById('receber-filtro-mes').value = currentMonth();
+refreshContaSelects();
+refreshCentroSelects();
+renderContas();
+renderCentros();
+renderRecorrentes();
+renderServicos();
+renderPagar();
+renderReceber();
+renderCarros();
+renderOS();
+renderLancar();
+renderOSEmitidas();
+initFirebase();
+</script>
+</body>
+</html>
